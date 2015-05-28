@@ -81,7 +81,7 @@ def main(session):
             error_cnt += 1 
 
     ######################################################################
-    # Iterate through all vm-export= in cfg
+    # Iterate through VMs
     log('************ vm-export= ***************')
     for vm_parm in config['vm-export']:
         log('*** vm-export begin %s' % vm_parm)
@@ -118,6 +118,10 @@ def main(session):
             continue 
 
         vm_record = session.xenapi.VM.get_record(vm[0])
+
+        # check for custom field "retain"
+        if 'XenCenter.CustomFields.retain' in vm_record['other_config'].keys():
+            vm_max_backups = int(vm_record['other_config']['XenCenter.CustomFields.retain'])
 
         vm_backup_dir = os.path.join(config['backup_dir'], vm_name) 
         if (not os.path.exists(vm_backup_dir)):
@@ -639,7 +643,7 @@ def log(mes, log_w_timestamp=True):
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print 'Usage:'
-        print sys.argv[0], ' <config-file|vm-name> [compress=True|False] [allow_extra_keys=True|False]'
+        print sys.argv[0], ' <config-file|vm-name> [compress=True|False] [allow_extra_keys=True|False] [backup_running_vms=True|False]'
         print sys.argv[0], ' == default ==>  compress=False  allow_extra_keys=False'
         sys.exit(1)
     cfg_file = sys.argv[1]
@@ -649,6 +653,7 @@ if __name__ == '__main__':
 
     compress = False         # default
     allow_extra_keys = False # default
+    backup_running_vms = False # default
     for arg_ix in arg_range:
         if sys.argv[arg_ix].lower() == 'compress=true':
             compress = True
@@ -658,6 +663,11 @@ if __name__ == '__main__':
             allow_extra_keys = True
         if sys.argv[arg_ix].lower() == 'allow_extra_keys=false':
             allow_extra_keys = False
+        if sys.argv[arg_ix].lower() == 'backup_running_vms=true':
+            backup_running_vms = True
+        if sys.argv[arg_ix].lower() == 'backup_running_vms=false':
+            backup_running_vms = False
+
 
     # init vm-export list
     if not 'vm-export' in config:
@@ -697,6 +707,19 @@ if __name__ == '__main__':
         else:
             print 'ERROR - XenAPI authentication error'
             sys.exit(1)
+
+    if backup_running_vms:
+        # get running VMs directly from XenServer
+        vms = session.xenapi.VM.get_all()
+
+        if (len(vms) == 0):
+            print 'ERROR - no runnings VMs found'
+            sys.exit(1)
+
+        for vm in vms:
+            record = session.xenapi.VM.get_record(vm)
+            if not(record["is_a_template"]) and not(record["is_control_domain"]) and (record["power_state"] == "Running"):
+                config['vm-export'].append(record['name_label'])
 
     config_print()
 
