@@ -10,6 +10,7 @@ directly or indirectly affected.
 **Package Contents:** README.md (this file), VmBackup.py, example.cfg
 
 ## Version History:
+ - v2.2 2015/05/28 Added the option to re-use retain values for the snapback-script
  - v2.1 2014/08/22 Added email status option
  - v2.0 2014/04/09 New VmBackup version (supersedes all previous NAUbackup versions)
 
@@ -57,15 +58,11 @@ directly or indirectly affected.
 
 Typical Usage w/ config file for multiple vm backups:
 
-    ./VmBackup.py <password> <config-file-path> [compress=True|False] [allow_extra_keys=True|False]
+    ./VmBackup.py <config-file-path> [compress=True|False] [allow_extra_keys=True|False]
   
-Alternate Usage w/ vm name for single vm backup:
-
-    ./VmBackup.py <password> <vm-name> [compress=True|False] [allow_extra_keys=True|False]
-
 Crontab example:
 
-    10 0 * * 6 /usr/bin/python /snapshots/NAUbackup/VmBackup.py password /snapshots/NAUbackup/example.cfg >> /snapshots/NAUbackup/logs/VmBackup.log 2>&1
+    10 0 * * 6 /usr/bin/python /snapshots/NAUbackup/VmBackup.py /snapshots/NAUbackup/example.cfg >> /snapshots/NAUbackup/logs/VmBackup.log 2>&1
 
 ### Command Line Parameters
  - *compress=True*          -> will trigger the 'xe vm-export compress=true' option during backup.
@@ -75,16 +72,23 @@ Crontab example:
  - *allow_extra_keys=False* -> (default) If extra keys exist, then an error will occur.
 
 ## Configuration File Options (see example.cfg):
- 1. Take Xen Pool DB backup: 0=No, 1=Yes (default to 0=No)
-   pool_db_backup=0
- 2. How many backups to keep for each vm (default to 4)
-   max_backups=4
- 3. Backup Directory path (required)
-   backup_dir=/path/to/backupspace
- 4. name-label of vm to backup. (required - one vm per line)
-   vm-export=my-vm-name
-   vm-export=my-second-vm
-   vm-export=my-third-vm
+Take Xen Pool DB backup: 0=No, 1=Yes (default to 0=No): `pool_db_backup=0`
+
+How many backups to keep for each vm (default to 4): `max_backups=4`
+
+Backup Directory path (required): `backup_dir=/path/to/backupspace`
+
+name-label of vm to backup (required - one vm per line):
+
+```
+vm-export=my-vm-name
+vm-export=my-second-vm
+vm-export=my-third-vm
+```
+
+password to connect to the XenAPI (required): `password=sup3rs3cr37`
+
+location of the logfile (default `/var/log/NAUbackup.log`): `status_log=/path/to/file.log`
 
 ## NFS Setup
   - The NFS server holding the backup storage area will need to export its directory to
