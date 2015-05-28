@@ -21,10 +21,10 @@
 # See example.cfg for config file example usage.
 
 # Usage w/ vm name for single vm backup:
-#    ./VmBackup.py <password> <vm-name>
+#    ./VmBackup.py <vm-name>
 
 # Usage w/ config file for multiple vm backups:
-#    ./VmBackup.py <password> <config-file-path>
+#    ./VmBackup.py <config-file-path>
 
 import sys, time, os, datetime, subprocess, re, shutil, XenAPI
 from subprocess import PIPE
@@ -36,9 +36,9 @@ from os.path import join
 DEFAULT_POOL_DB_BACKUP = 0
 DEFAULT_MAX_BACKUPS = 4
 DEFAULT_BACKUP_DIR = '/snapshots/BACKUPS'
+DEFAULT_STATUS_LOG = '/var/log/NAUbackup.log'
 # note - some NAS file servers may fail with ':', so change to your desired format
 BACKUP_DIR_PATTERN = '%s/backup-%04d-%02d-%02d-(%02d:%02d:%02d)'
-STATUS_LOG = '/snapshots/NAUbackup/status.log'
 
 ############################# OPTIONAL
 # optional email may be triggered by configure next 3 parameters then find MAIL_ and uncommenting out the desired lines
@@ -48,7 +48,7 @@ MAIL_FROM_ADDR = 'your-from-address@your-domain'
 MAIL_SMTP_SERVER = 'your-mail-server'
 
 config = {}
-expected_keys = ['pool_db_backup', 'max_backups', 'backup_dir', 'vm-export']
+expected_keys = ['pool_db_backup', 'max_backups', 'backup_dir', 'vm-export', 'status_log', 'password']
 message = ''
 xe_path = '/opt/xensource/bin' 
 
@@ -350,22 +350,22 @@ def main(session):
         if config_specified:
             status_log_end(server_name, 'ERROR,%s' % summary)
             # note: optional email may be enabled by uncommenting out the next two lines
-            #send_email("%s 'ERROR VmBackup.py' %s" % (MAIL_TO_ADDR, STATUS_LOG))
-            #open('%s' % STATUS_LOG, 'w').close() # trunc status log after email
+            #send_email("%s 'ERROR VmBackup.py' %s" % (MAIL_TO_ADDR, status_log))
+            #open('%s' % status_log, 'w').close() # trunc status log after email
         log('VmBackup ended - **ERRORS DETECTED** - %s' % summary)
     elif (warning):
         if config_specified:
             status_log_end(server_name, 'WARNING,%s' % summary)
             # note: optional email may be enabled by uncommenting out the next two lines
-            #send_email("%s 'Warning VmBackup.py' %s" % (MAIL_TO_ADDR, STATUS_LOG))
-            #open('%s' % STATUS_LOG, 'w').close() # trunc status log after email
+            #send_email("%s 'Warning VmBackup.py' %s" % (MAIL_TO_ADDR, status_log))
+            #open('%s' % status_log, 'w').close() # trunc status log after email
         log('VmBackup ended - **Warning(s)** - %s' % summary)
     else:
         if config_specified:
             status_log_end(server_name, 'SUCCESS,%s' % summary)
             # note: optional email may be enabled by uncommenting out the next two lines
-            #send_email("%s 'Success VmBackup.py' %s" % (MAIL_TO_ADDR, STATUS_LOG))
-            #open('%s' % STATUS_LOG, 'w').close() # trunc status log after email
+            #send_email("%s 'Success VmBackup.py' %s" % (MAIL_TO_ADDR, status_log))
+            #open('%s' % status_log, 'w').close() # trunc status log after email
         log('VmBackup ended - Success - %s' % summary)
 
     # done with main()
@@ -581,6 +581,9 @@ def config_defaults():
         config['max_backups'] = str(DEFAULT_MAX_BACKUPS)
     if not 'backup_dir' in config.keys():
         config['backup_dir'] = str(DEFAULT_BACKUP_DIR)
+    if not 'status_log' in config.keys():
+        config['status_log'] = str(DEFAULT_STATUS_LOG)
+
 
 def config_print():
     log('VmBackup.py running with these settings:')
@@ -588,6 +591,7 @@ def config_print():
     log('  compress       = %s' % compress)
     log('  max_backups    = %s' % config['max_backups'])
     log('  pool_db_backup = %s' % config['pool_db_backup'])
+    log('  status_log     = %s' % config['status_log'])
     log('  vm-export (cnt)= %s' % len(config['vm-export']))
     str = ''
     for vm_parm in config['vm-export']:
@@ -598,15 +602,15 @@ def config_print():
 
 def status_log_begin(server):
     rec_begin = '%s,vmbackup.py,%s,begin\n' % (fmtDateTime(), server)
-    open(STATUS_LOG,'a',0).write(rec_begin)
+    open(status_log,'a',0).write(rec_begin)
 
 def status_log_end(server, status):
     rec_end = '%s,vmbackup.py,%s,end,%s\n' % (fmtDateTime(), server, status)
-    open(STATUS_LOG,'a',0).write(rec_end)
+    open(status_log,'a',0).write(rec_end)
 
 def status_log_vm_export(server, status):
     rec_end = '%s,vm-export,%s,end,%s\n' % (fmtDateTime(), server, status)
-    open(STATUS_LOG,'a',0).write(rec_end)
+    open(status_log,'a',0).write(rec_end)
 
 def fmtDateTime():
     date = datetime.datetime.today()
@@ -633,18 +637,17 @@ def log(mes, log_w_timestamp=True):
     sys.stderr.flush()
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         print 'Usage:'
-        print sys.argv[0], ' <password> <config-file|vm-name> [compress=True|False] [allow_extra_keys=True|False'
+        print sys.argv[0], ' <config-file|vm-name> [compress=True|False] [allow_extra_keys=True|False]'
         print sys.argv[0], ' == default ==>  compress=False  allow_extra_keys=False'
         sys.exit(1)
-    password = sys.argv[1]
-    cfg_file = sys.argv[2]
+    cfg_file = sys.argv[1]
 
     # loop through remaining optional args
-    arg_range = range(3,len(sys.argv))
+    arg_range = range(2,len(sys.argv))
 
-    compress = False                # default
+    compress = False         # default
     allow_extra_keys = False # default
     for arg_ix in arg_range:
         if sys.argv[arg_ix].lower() == 'compress=true':
@@ -672,11 +675,12 @@ if __name__ == '__main__':
         config['vm-export'].append(cfg_file)
         config_defaults()
 
-    config_print()
-    
     if not config_verify():
         print 'ERROR in configuration settings...'
         sys.exit(1)
+
+    password = config['password']
+    status_log = config['status_log']
 
     # acquire a xapi session by logging in
     try:
@@ -693,6 +697,8 @@ if __name__ == '__main__':
         else:
             print 'ERROR - XenAPI authentication error'
             sys.exit(1)
+
+    config_print()
 
     if not config_specified:
         # verify vm exists
