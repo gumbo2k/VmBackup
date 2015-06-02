@@ -48,21 +48,21 @@ MAIL_FROM_ADDR = 'your-from-address@your-domain'
 MAIL_SMTP_SERVER = 'your-mail-server'
 
 config = {}
-expected_keys = ['pool_db_backup', 'max_backups', 'backup_dir', 'vm-export', 'status_log', 'password']
+expected_keys = ['pool_db_backup', 'max_backups', 'backup_dir', 'vm-export', 'status_log', 'password', 'pool_host']
 message = ''
-xe_path = '/opt/xensource/bin' 
+xe_path = '/opt/xensource/bin'
 
-def main(session): 
+def main(session):
 
     success = True
     warning = False
     success_cnt = 0
     warning_cnt = 0
-    error_cnt = 0 
+    error_cnt = 0
 
     #setting autoflush on (aka unbuffered)
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
-    
+
     #server_name = run_get_lastline('/bin/hostname -s')
     server_name = os.uname()[1].split('.')[0]
     log('VmBackup config loaded from: %s' % cfg_file)
@@ -78,7 +78,7 @@ def main(session):
         log('*** begin backup_pool_metadata ***')
         if not backup_pool_metadata(server_name):
             success = False
-            error_cnt += 1 
+            error_cnt += 1
 
     ######################################################################
     # Iterate through VMs
@@ -103,7 +103,7 @@ def main(session):
         if (len(vm) > 1):
             log('ERROR more than one vm with the name %s' % vm_name)
             success = False
-            error_cnt += 1 
+            error_cnt += 1
             if config_specified:
                 status_log_vm_export(server_name, 'DUP-NAME %s' % vm_name)
             # next vm
@@ -123,7 +123,7 @@ def main(session):
         if 'XenCenter.CustomFields.retain' in vm_record['other_config'].keys():
             vm_max_backups = int(vm_record['other_config']['XenCenter.CustomFields.retain'])
 
-        vm_backup_dir = os.path.join(config['backup_dir'], vm_name) 
+        vm_backup_dir = os.path.join(config['backup_dir'], vm_name)
         if (not os.path.exists(vm_backup_dir)):
             # Create new dir
             try:
@@ -131,7 +131,7 @@ def main(session):
             except OSError, error:
                 log('ERROR creating directory %s' % vm_backup_dir)
                 success = False
-                error_cnt += 1 
+                error_cnt += 1
                 # fatal, stop all vm backups
                 break
 
@@ -149,14 +149,14 @@ def main(session):
                     # note this is only case where this_success is false
                     this_success = False
                     success = False
-                    error_cnt += 1 
+                    error_cnt += 1
 
         # create new backup dir
         backup_dir = get_backup_dir(vm_backup_dir)
         if not backup_dir:
             log ('ERROR no backup dir exists %s ' % vm_backup_dir)
             success = False
-            error_cnt += 1 
+            error_cnt += 1
             # next vm
             continue
 
@@ -173,11 +173,11 @@ def main(session):
         vm_out.write('orig_uuid=%s\n' % vm_record['uuid'])
         vm_uuid = vm_record['uuid']
         vm_out.close()
-       
+
         # Write metadata files for vdis and vbds.  These end up inside of a DISK- directory.
         log ('Writing disk info')
         for vbd in vm_record['VBDs']:
-            vbd_record = session.xenapi.VBD.get_record(vbd)  
+            vbd_record = session.xenapi.VBD.get_record(vbd)
             # For each vbd, find out if its a disk
             if vbd_record['type'].lower() != 'disk':
                 continue
@@ -223,7 +223,7 @@ def main(session):
             device_path = '%s/VIFs' % backup_dir
             if (not os.path.exists(device_path)):
                 os.mkdir(device_path)
-            vif_out = open('%s/vif-%s.cfg' % (device_path, vif_record['device']), 'w') 
+            vif_out = open('%s/vif-%s.cfg' % (device_path, vif_record['device']), 'w')
             vif_out.write('device=%s\n' % vif_record['device'])
             network_name = session.xenapi.network.get_record(vif_record['network'])['name_label']
             vif_out.write('network_name_label=%s\n' % network_name)
@@ -250,7 +250,7 @@ def main(session):
         if snap_uuid == '':
             log('ERROR %s' % cmd)
             success = False
-            error_cnt += 1 
+            error_cnt += 1
             if config_specified:
                 status_log_vm_export(server_name, 'SNAPSHOT-FAIL %s' % vm_name)
             # next vm
@@ -262,7 +262,7 @@ def main(session):
         if run_log_out_wait_rc(cmd) != 0:
             log('ERROR %s' % cmd)
             success = False
-            error_cnt += 1 
+            error_cnt += 1
             if config_specified:
                 status_log_vm_export(server_name, 'PARAM-SET-FAIL %s' % vm_name)
             # next vm
@@ -275,19 +275,19 @@ def main(session):
             cmd = '%s filename="%s" compress=true' % (cmd, xva_file)
         else:
             xva_file = os.path.join(backup_dir, vm_name + '.xva')
-            cmd = '%s filename="%s"' % (cmd, xva_file) 
+            cmd = '%s filename="%s"' % (cmd, xva_file)
         log('3.cmd: %s' % cmd)
         if run_log_out_wait_rc(cmd) == 0:
             log('vm-export success')
         else:
             log('ERROR %s' % cmd)
             success = False
-            error_cnt += 1 
+            error_cnt += 1
             if config_specified:
                 status_log_vm_export(server_name, 'VM-EXPORT-FAIL %s' % vm_name)
             # next vm
             continue
-    
+
         # vm-uninstall snapshot
         cmd = '%s/xe vm-uninstall uuid=%s force=true' % (xe_path, snap_uuid)
         log('4.cmd: %s' % cmd)
@@ -320,7 +320,7 @@ def main(session):
                 log('**WARNING** cleanup needed - not all backup history is successful')
                 warning = True
                 warning_cnt += 1
-            
+
             # Remove oldest if more than vm_max_backups
             dir_to_remove = get_dir_to_remove(vm_backup_dir, vm_max_backups)
             while (dir_to_remove):
@@ -387,7 +387,7 @@ def get_backup_dir(base_path):
             return False
 
     date = datetime.datetime.today()
-    #backup_dir = '%s/backup-%04d-%02d-%02d-(%02d:%02d:%02d)' 
+    #backup_dir = '%s/backup-%04d-%02d-%02d-(%02d:%02d:%02d)'
     backup_dir = BACKUP_DIR_PATTERN \
     % (base_path, date.year, date.month, date.day, date.hour, date.minute, date.second)
     print 'backup_dir: %s' % backup_dir
@@ -471,7 +471,7 @@ def backup_pool_metadata(svr_name):
 # some run notes with xe return code and output examples
 #  xe vm-lisX -> error .returncode=1 w/ error msg
 #  xe vm-list name-label=BAD-vm-name -> success .returncode=0 with no output
-#  xe pool-dump-database file-name=<dup-file-already-exists> 
+#  xe pool-dump-database file-name=<dup-file-already-exists>
 #     -> error .returncode=1 w/ error msg
 def run_log_out_wait_rc(cmd, log_w_timestamp=True):
     #child = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -516,7 +516,7 @@ def send_email(to, subject, body_fname):
     msg['From'] = MAIL_FROM_ADDR
     msg['To'] = to
 
-    # note if using an ipaddress in MAIL_SMTP_SERVER, 
+    # note if using an ipaddress in MAIL_SMTP_SERVER,
     # then may require smtplib.SMTP(MAIL_SMTP_SERVER, local_hostname="localhost")
     s = smtplib.SMTP(MAIL_SMTP_SERVER)
     s.sendmail(from_addr, to.split(','), msg.as_string())
@@ -542,7 +542,7 @@ def config_verify():
     if not (int(config['pool_db_backup']) >= 0 and int(config['pool_db_backup']) <= 1):
         print 'ERROR: config pool_db_backup -> %s' % config['pool_db_backup']
         return False
- 
+
     if not (int(config['max_backups']) > 0):
         print 'ERROR: config max_backups -> %s' % config['max_backups']
         return False
@@ -587,6 +587,8 @@ def config_defaults():
         config['backup_dir'] = str(DEFAULT_BACKUP_DIR)
     if not 'status_log' in config.keys():
         config['status_log'] = str(DEFAULT_STATUS_LOG)
+    if not 'pool_host' in config.keys():
+        config['pool_host'] = False
 
 
 def config_print():
@@ -596,6 +598,8 @@ def config_print():
     log('  max_backups    = %s' % config['max_backups'])
     log('  pool_db_backup = %s' % config['pool_db_backup'])
     log('  status_log     = %s' % config['status_log'])
+    if config['pool_host']:
+        log('  pool_host      = %s' % config['pool_host'])
     log('  vm-export (cnt)= %s' % len(config['vm-export']))
     str = ''
     for vm_parm in config['vm-export']:
@@ -709,8 +713,23 @@ if __name__ == '__main__':
             sys.exit(1)
 
     if backup_running_vms:
-        # get running VMs directly from XenServer
-        vms = session.xenapi.VM.get_all()
+        if config['pool_host']:
+            # get running VMs for given host in XenPool
+            host = session.xenapi.host.get_by_name_label(config['pool_host'])
+
+            if len(host) > 1:
+                print 'ERROR - more than one host with name %s' % config['pool_host']
+                sys.exit(1)
+
+            if len(host) < 1:
+                print 'ERROR - no host with name %s' % config['pool_host']
+                sys.exit(1)
+
+            host_record = session.xenapi.host.get_record(host[0])
+            vms = host_record['resident_VMs']
+        else:
+            # get running VMs directly from current XenServer
+            vms = session.xenapi.VM.get_all()
 
         if (len(vms) == 0):
             print 'ERROR - no runnings VMs found'
