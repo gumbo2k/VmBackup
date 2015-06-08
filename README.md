@@ -10,7 +10,7 @@ directly or indirectly affected.
 **Package Contents:** README.md (this file), VmBackup.py, example.cfg
 
 ## Version History:
- - v2.2 2015/05/28 Added the option to re-use retain values for the snapback-script
+ - v3.0 2015/06/08 Added the option to re-use retain values for the snapback-script
  - v2.1 2014/08/22 Added email status option
  - v2.0 2014/04/09 New VmBackup version (supersedes all previous NAUbackup versions)
 

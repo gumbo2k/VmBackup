@@ -9,6 +9,7 @@
 # Title: a XenServer simple vm backup script
 # Package Contents: README.md, VmBackup.py (this file), example.cfg
 # Version History
+# - v3.0 2015/06/08 Added the option to re-use retain values for the snapback-script
 # - v2.1 2014/08/22 Added email status option
 # - v2.0 2014/04/09 New VmBackup version (supersedes all previous NAUbackup versions)
 
