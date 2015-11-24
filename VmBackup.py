@@ -49,7 +49,7 @@ MAIL_FROM_ADDR = 'your-from-address@your-domain'
 MAIL_SMTP_SERVER = 'your-mail-server'
 
 config = {}
-expected_keys = ['pool_db_backup', 'max_backups', 'backup_dir', 'vm-export', 'status_log', 'password', 'pool_host']
+expected_keys = ['pool_db_backup', 'max_backups', 'backup_dir', 'vm-export', 'status_log', 'password', 'password_from_file', 'pool_host']
 message = ''
 xe_path = '/opt/xensource/bin'
 
@@ -694,7 +694,17 @@ if __name__ == '__main__':
         print 'ERROR in configuration settings...'
         sys.exit(1)
 
-    password = config['password']
+    if 'password' in config:
+        password = config['password']
+    else:
+        if 'password_from_file' in config:
+            infile = open(config['password_from_file'], 'r')
+            password = infile.readline().strip()
+            infile.close()
+        else:
+            print 'ERROR in configuration: No password provided'
+            sys.exit(1)
+
     status_log = config['status_log']
 
     # acquire a xapi session by logging in
